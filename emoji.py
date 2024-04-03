@@ -1,20 +1,40 @@
 import discord
-import webhook
+import requests
 
+class EmojiBot(discord.Client):
+    async def on_ready(self):
+        print(f'{self.user} has connected to Discord!')
 
+    async def on_message(self, message):
+        # Check if the message content starts and ends with a colon
+        if message.content.startswith(":") and message.content.endswith(":"):
+            # Extract the emoji name from the message content
+            emoji_name = message.content[1:-1]
 
+            # Search for the emoji in the guild's collection
+            for emoji in message.guild.emojis:
+                if emoji_name == emoji.name:
+                    # Get the user's profile picture
+                    pfp = requests.get(message.author.avatar_url_as(format='png', size=256)).content
 
-@bot.event
-async def on_message(message):
-   if ":" == message.content[0] and ":" == message.content[-1]: #[0]-[-1] are the strings for the message content to detect the nature of the message and work according to it.
-        emoji_name = message.content[1:-1] #describing the bot to function the commands for the emoji only / where it can be used for messages also !
+                    # Create a webhook with the user's display name and profile picture
+                    hook = await message.channel.create_webhook(name=message.author.display_name, avatar=pfp)
 
-        for emoji in message.guild.emojis: # providing limitation to the emoji rendering to the guilds the bot is in.
-            if emoji_name == emoji.name:
-                pfp = requests.get(message.author.avatar_url_as(format='png', size=256)).content #defining the body of the webhook
-                hook = await message.channel.create_webhook(name=message.author.display_name, avatar=pfp)
-                await hook.send(emoji)
-                await hook.delete()  #this will delete the webhook for integrations as per the discord limit of 10 webhooks per channel
-                await message.delete() #this will delete the user message strating with ":" and ending wtih ":", so that the bot get clear commands of what to do !
+                    # Send the emoji through the webhook
+                    await hook.send(emoji)
 
-    await bot.process_commands(message) # letting bot to process other commands too.
+                    # Delete the webhook to avoid exceeding Discord's limit
+                    await hook.delete()
+
+                    # Delete the user's message
+                    await message.delete()
+
+                    # Exit the loop once the emoji is found and sent
+                    break
+
+        # Process other commands
+        await self.process_commands(message)
+
+# Run the bot with your token
+bot = EmojiBot()
+bot.run('YOUR_DISCORD_BOT_TOKEN')
